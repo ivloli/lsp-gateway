@@ -1,0 +1,13 @@
+### Get weight status by group (using query parameter)
+GET http://localhost:8080/api/v1/weights/status?group=mock/lsp
+
+### Get weight status by provider id
+GET http://localhost:8080/api/v1/weights/provider/lsp-1
+
+### Reset weights for specific group
+POST http://localhost:8080/api/v1/weights/reset
+Content-Type: application/json
+
+{
+  "group": "mock/lsp"
+}

@@ -1,0 +1,39 @@
+# Rust build artifacts
+target/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Environment files (these should be provided at runtime)
+.env
+.env.local
+.env.example
+
+# Test files
+test/
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/

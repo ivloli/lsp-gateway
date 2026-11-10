@@ -1,0 +1,107 @@
+# Multi-stage build for Rust LSP Gateway with Profiling Support
+# This Dockerfile builds the gateway with profiling features enabled
+# ⚠️ WARNING: Only use this for debugging/profiling environments, NOT for production
+
+FROM rust:1.89 AS builder
+
+# Install system dependencies needed for building and profiling
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    clang \
+    lld \
+    linux-perf \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Rust compilation environment variables for better performance
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+ENV CARGO_INCREMENTAL=1
+ENV CARGO_BUILD_JOBS=4
+# Enable debug symbols for profiling while keeping optimizations
+ENV RUSTFLAGS="-C target-cpu=generic -C link-arg=-fuse-ld=lld -C debuginfo=2"
+
+# Create app directory
+WORKDIR /app
+
+# Copy Cargo files first for better layer caching
+COPY Cargo.toml Cargo.lock ./
+COPY .cargo ./.cargo
+
+# Copy source code
+COPY src ./src
+COPY migrations ./migrations
+
+# Create a dummy main.rs to build dependencies
+RUN mv src/main.rs src/main.rs.bak && \
+    echo "fn main() {}" > src/main.rs
+
+# Build dependencies with profiling feature
+RUN cargo build --release --locked --features profiling && \
+    rm -rf target/release/deps/lsp_gateway* target/release/lsp-gateway*
+
+# Restore the real main.rs and build the actual application with profiling
+RUN mv src/main.rs.bak src/main.rs && \
+    cargo build --release --locked --features profiling
+
+
+# Runtime stage with profiling tools
+FROM debian:bookworm-slim
+
+# Install runtime dependencies and profiling tools
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libpq5 \
+    curl \
+    linux-perf \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# Create app user (but with more permissions for profiling)
+RUN useradd -r -s /bin/bash -m -d /app appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy the binary from builder stage (with profiling enabled)
+COPY --from=builder /app/target/release/lsp-gateway /app/lsp-gateway
+
+# Copy migrations
+COPY --from=builder /app/migrations /app/migrations
+
+# Create directory for profiling output
+RUN mkdir -p /app/profiles && chown -R appuser:appuser /app
+
+# Change ownership to app user
+RUN chown -R appuser:appuser /app
+
+# Switch to app user
+USER appuser
+
+# Expose port (default is 8080)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Set default environment variables
+ENV RUST_LOG=info
+ENV BIND_ADDRESS=0.0.0.0
+ENV PORT=8080
+
+# Add profiling-specific environment variables
+ENV PROFILING_ENABLED=true
+ENV RUST_BACKTRACE=1
+
+# Labels for identification
+LABEL maintainer="LSP Gateway Team"
+LABEL version="profiling"
+LABEL description="LSP Gateway with profiling features enabled"
+LABEL profiling="enabled"
+
+# Run the application with profiling enabled
+CMD ["./lsp-gateway"]
+

@@ -1,0 +1,19 @@
+# Binaries
+genai-proxy
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Logs
+*.log
+

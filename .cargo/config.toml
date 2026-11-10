@@ -1,0 +1,52 @@
+# Cargo 配置文件 - 用于性能优化和 profiling
+
+[build]
+# 使用所有 CPU 核心编译（0 表示自动检测，但某些版本不支持，可以注释掉）
+# jobs = 0
+
+[profile.release]
+# 生产环境优化配置
+lto = "thin"              # 链接时优化（thin 比 fat 快但优化稍少）
+codegen-units = 1         # 单个代码生成单元，更好的优化
+opt-level = 3             # 最高优化级别
+# strip = true           # 注释掉：保留符号以支持 profiling（在 Cargo.toml 中配置）
+# panic = "abort"        # 注释掉：保留 unwind 以支持 profiling
+
+[profile.release-with-debug]
+# 用于生产环境 profiling 的配置
+inherits = "release"
+strip = false             # 保留符号信息用于 profiling
+debug = true              # 包含调试信息
+
+[profile.bench]
+# 性能测试配置
+inherits = "release"
+
+[profile.dev]
+# 开发环境优化，加快编译速度
+opt-level = 1             # 轻度优化，加快编译
+split-debuginfo = "unpacked"  # 加快增量编译（仅 macOS/Linux）
+
+[target.x86_64-unknown-linux-gnu]
+# Linux 特定优化
+rustflags = [
+    "-C", "target-cpu=native",      # 使用本机 CPU 指令集
+    "-C", "force-frame-pointers=yes" # 保留 frame pointers 用于 profiling
+]
+
+[target.x86_64-apple-darwin]
+# macOS 特定优化 (Apple Silicon 和 Intel)
+rustflags = [
+    "-C", "target-cpu=native",      # 使用本机 CPU 指令集
+    "-C", "force-frame-pointers=yes" # 保留 frame pointers 用于 profiling
+]
+
+[target.aarch64-apple-darwin]
+# Apple Silicon (M1/M2/M3) 特定优化
+rustflags = [
+    "-C", "target-cpu=native",
+    "-C", "force-frame-pointers=yes"
+]
+
+# 如果需要交叉编译，可以添加其他 target
+

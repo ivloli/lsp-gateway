@@ -1,0 +1,102 @@
+name: Build and Push LSP Gateway (Profiling)
+
+on:
+  push:
+    branches: [main]
+    tags: ["profiling-v*"]
+    paths:
+      - "src/**"
+      - "migrations/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "Dockerfile.profiling"
+      - ".cargo/**"
+      - ".github/workflows/profiling-build-push.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "migrations/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "Dockerfile.profiling"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}},prefix=profiling-
+            type=semver,pattern={{major}}.{{minor}},prefix=profiling-
+            type=semver,pattern={{major}},prefix=profiling-
+            type=sha,prefix=profiling-
+            type=raw,value=profiling-latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.profiling
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            profiling=enabled
+            build.type=profiling
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Image digest
+        if: github.event_name != 'pull_request'
+        run: echo "${{ steps.build.outputs.digest }}"
+
+      - name: Create deployment summary
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "## Profiling Build Summary"
+            echo ""
+            echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`"
+            echo "**Tags:** \`${{ steps.meta.outputs.tags }}\`"
+            echo "**Digest:** \`${{ steps.build.outputs.digest }}\`"
+            echo ""
+            echo "### Important Notes"
+            echo "- This image has profiling features **enabled**"
+            echo "- **DO NOT** use in production environments"
+            echo "- Only for debugging and performance analysis"
+            echo "- Image includes debug symbols (larger size)"
+          } >> "$GITHUB_STEP_SUMMARY"

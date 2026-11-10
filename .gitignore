@@ -1,0 +1,85 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+# Note: Cargo.lock should be committed for applications (not libraries)
+# Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Build artifacts
+dist/
+build/
+
+# Node.js (if any frontend tools are added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Profiling
+*.prof
+
+# Backup files
+*.bak
+*.backup
+
+# Test artifacts
+test-results/
+.nyc_output/
+
+# Documentation build
+docs/_build/
+
+# Local configuration
+config.local.*
+.cursor/
+.claude/
+.qoder/
+.codebase-memory/
+
+# Editor tag files
+rusty-tags.vi
+tags
+
+# Prebuilt binaries
+genai-proxy/bin/

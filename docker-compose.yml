@@ -1,0 +1,87 @@
+services:
+  lsp-gateway:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+      - SERVER_BIND_ADDRESS=0.0.0.0
+      - SERVER_PORT=8080
+      # Distributed tracing: point OTLP_TRACES_URL at your own collector.
+      - TRACING_ENABLED=${TRACING_ENABLED:-false}
+      - OTLP_TRACES_URL=${OTLP_TRACES_URL:-http://host.docker.internal:4318}
+      - SERVICE_NAME=lsp-gateway
+      - SERVICE_VERSION=0.1.0
+      - TRACING_SAMPLING_RATIO=1.0
+      - TRACING_DEBUG=false
+      - DATABASE_URL=${DATABASE_URL:-postgresql://host.docker.internal/lsp_gateway}
+      - REDIS_URL=${REDIS_URL:-redis://host.docker.internal:6379}
+    depends_on:
+      - mock-server
+    networks:
+      - lsp-network
+
+  mock-server:
+    build: ./test
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    command:
+      [
+        "python",
+        "mock_server.py",
+        "--normal",
+        "0.6",
+        "--error",
+        "0.3",
+        "--timeout",
+        "0.1",
+      ]
+    networks:
+      - lsp-network
+
+  # 可以添加多个mock server实例来模拟不同的行为
+  mock-server-unstable:
+    build: ./test
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    command:
+      [
+        "python",
+        "mock_server.py",
+        "--normal",
+        "0.2",
+        "--error",
+        "0.5",
+        "--timeout",
+        "0.3",
+      ]
+    networks:
+      - lsp-network
+
+  mock-server-slow:
+    build: ./test
+    ports:
+      - "8002:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    command:
+      [
+        "python",
+        "mock_server.py",
+        "--normal",
+        "0.3",
+        "--error",
+        "0.1",
+        "--timeout",
+        "0.6",
+      ]
+    networks:
+      - lsp-network
+
+networks:
+  lsp-network:
+    driver: bridge
